@@ -3,20 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Primordial - Visualizador</title>
+    <title>Primordial - Visualizador Pro</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .cushion-item { touch-action: none; user-select: none; }
-        .resize-handle { width: 14px; height: 14px; background: #000; border: 2px solid #fff; border-radius: 50%; position: absolute; bottom: -7px; right: -7px; cursor: nwse-resize; }
+        .resize-handle { 
+            width: 24px; 
+            height: 24px; 
+            background: white; 
+            border: 3px solid black; 
+            border-radius: 50%; 
+            position: absolute; 
+            bottom: -12px; 
+            right: -12px; 
+            cursor: nwse-resize; 
+            z-index: 50;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
+        
         const CUSHION_CATALOG = [
             { id: 'c1', name: 'Ajedrez Terciopelo', src: 'https://i.postimg.cc/Cz2Nqz5R/image.png' },
             { id: 'c2', name: 'Cojín 2', src: 'https://i.postimg.cc/R3dJwDdd/image.png' },
@@ -28,7 +41,7 @@
             const [bgImage, setBgImage] = useState(null);
             const [placedItems, setPlacedItems] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
-            const [action, setAction] = useState(null); // 'move' o 'resize'
+            const [action, setAction] = useState(null);
 
             const handleImageUpload = (e) => {
                 const file = e.target.files[0];
@@ -36,8 +49,8 @@
             };
 
             const addCushion = (c) => {
-                if(!bgImage) return alert("Sube una foto de tu sala primero");
-                const newItem = { id: Date.now(), src: c.src, x: 200, y: 200, w: 150 };
+                if(!bgImage) return alert("Primero sube una foto de tu sala");
+                const newItem = { id: Date.now(), src: c.src, x: 150, y: 150, w: 180 };
                 setPlacedItems([...placedItems, newItem]);
                 setSelectedId(newItem.id);
             };
@@ -48,6 +61,7 @@
                 const item = placedItems.find(i => i.id === id);
                 const clientX = e.clientX || e.touches?.[0].clientX;
                 const clientY = e.clientY || e.touches?.[0].clientY;
+                
                 setAction({ 
                     id, 
                     type, 
@@ -64,18 +78,23 @@
                     if (!action) return;
                     const clientX = e.clientX || e.touches?.[0].clientX;
                     const clientY = e.clientY || e.touches?.[0].clientY;
+                    
                     const deltaX = clientX - action.startX;
+                    const deltaY = clientY - action.startY;
 
                     setPlacedItems(prev => prev.map(item => {
                         if (item.id !== action.id) return item;
                         if (action.type === 'move') {
-                            return { ...item, x: action.initX + deltaX, y: action.initY + (clientY - action.startY) };
+                            return { ...item, x: action.initX + deltaX, y: action.initY + deltaY };
                         } else {
-                            return { ...item, w: Math.max(50, action.initW + deltaX) };
+                            // Redimensionar manteniendo aspecto (basado en ancho)
+                            return { ...item, w: Math.max(40, action.initW + deltaX) };
                         }
                     }));
                 };
+
                 const onEnd = () => setAction(null);
+
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onEnd);
                 return () => {
@@ -85,32 +104,74 @@
             }, [action]);
 
             return (
-                <div className="min-h-screen bg-stone-50 flex flex-col font-sans select-none">
-                    <header className="bg-white p-4 border-b flex justify-between items-center shadow-sm">
+                <div className="min-h-screen bg-stone-50 flex flex-col font-sans select-none overflow-hidden">
+                    <header className="bg-white p-4 border-b flex justify-between items-center shadow-sm z-20">
                         <h1 className="text-xl font-bold tracking-tighter">PRIMORDIAL</h1>
-                        <span className="text-[10px] uppercase tracking-widest text-stone-400">Visualizador</span>
+                        <span className="text-[10px] uppercase tracking-widest text-stone-400 font-bold">Visualizador de Espacios</span>
                     </header>
+                    
                     <main className="flex flex-col lg:flex-row flex-1 overflow-hidden">
-                        <aside className="w-full lg:w-72 bg-white p-6 border-r space-y-6 z-10">
-                            <h2 className="text-xs font-bold uppercase">1. Foto de tu sala</h2>
-                            <input type="file" onChange={handleImageUpload} className="text-xs w-full" />
-                            <h2 className="text-xs font-bold uppercase mt-4">2. Cojines</h2>
-                            <div className="grid grid-cols-2 gap-2">
-                                {CUSHION_CATALOG.map(c => (
-                                    <div key={c.id} onClick={() => addCushion(c)} className="border p-2 rounded hover:border-black cursor-pointer bg-white">
-                                        <img src={c.src} className="w-full h-10 object-contain" />
-                                    </div>
-                                ))}
+                        <aside className="w-full lg:w-80 bg-white p-6 border-r space-y-6 z-10 shadow-lg">
+                            <div>
+                                <h2 className="text-[10px] font-black uppercase text-stone-500 mb-2">1. Carga tu espacio</h2>
+                                <input type="file" onChange={handleImageUpload} className="text-xs w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-100 file:text-stone-700 hover:file:bg-stone-200 cursor-pointer" />
+                            </div>
+                            
+                            <hr />
+                            
+                            <div>
+                                <h2 className="text-[10px] font-black uppercase text-stone-500 mb-4">2. Selecciona tus cojines</h2>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {CUSHION_CATALOG.map(c => (
+                                        <div key={c.id} onClick={() => addCushion(c)} className="group border rounded-xl p-2 hover:border-black transition-all cursor-pointer bg-stone-50 flex flex-col items-center">
+                                            <img src={c.src} className="w-full h-16 object-contain mb-2 group-hover:scale-110 transition-transform" />
+                                            <span className="text-[9px] font-medium text-center">{c.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </aside>
-                        <section className="flex-1 p-4 flex items-center justify-center bg-stone-100 relative overflow-hidden" onPointerDown={() => setSelectedId(null)}>
+
+                        <section className="flex-1 p-8 flex items-center justify-center bg-stone-100 relative" onPointerDown={() => setSelectedId(null)}>
                             {!bgImage ? (
-                                <p className="text-stone-400">Carga una foto para empezar</p>
+                                <div className="text-center">
+                                    <div className="w-16 h-16 bg-stone-200 rounded-full flex items-center justify-center mx-auto mb-4">📸</div>
+                                    <p className="text-stone-400 font-medium">Sube una foto de tu sofá para empezar a diseñar</p>
+                                </div>
                             ) : (
-                                <div className="relative shadow-2xl bg-white inline-block">
-                                    <img src={bgImage} className="max-h-[80vh] block pointer-events-none" />
+                                <div className="relative shadow-2xl bg-white border-8 border-white rounded-sm inline-block">
+                                    <img src={bgImage} className="max-h-[75vh] block pointer-events-none" />
                                     {placedItems.map(item => (
                                         <div 
                                             key={item.id} 
                                             onPointerDown={(e) => onStart(e, item.id, 'move')}
-                                            style={{ left: item.x, top: item.y, width: item.w, transform
+                                            style={{ 
+                                                left: item.x, 
+                                                top: item.y, 
+                                                width: item.w, 
+                                                transform: 'translate(-50%, -50%)' 
+                                            }} 
+                                            className={`absolute cursor-move cushion-item ${selectedId === item.id ? 'ring-2 ring-black ring-offset-4' : ''}`}
+                                        >
+                                            <img src={item.src} className="w-full h-full object-contain drop-shadow-2xl pointer-events-none" />
+                                            {selectedId === item.id && (
+                                                <div 
+                                                    className="resize-handle" 
+                                                    onPointerDown={(e) => onStart(e, item.id, 'resize')} 
+                                                />
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </section>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
