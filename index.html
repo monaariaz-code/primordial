@@ -1,6 +1,90 @@
 <!DOCTYPE html>
+<html lang="es"><!DOCTYPE html>
 <html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Primordial - Visualizador</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .cushion-item { touch-action: none; user-select: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        const CUSHION_CATALOG = [
+            { id: 'c1', name: 'Ajedrez Terciopelo', src: 'https://i.postimg.cc/Cz2Nqz5R/image.png' },
+            { id: 'c2', name: 'Cojín 2', src: 'https://i.postimg.cc/R3dJwDdd/image.png' },
+            { id: 'c3', name: 'Cojín 3', src: 'https://i.postimg.cc/SnNhJ1nt/image.png' },
+            { id: 'c4', name: 'Cojín 4', src: 'https://i.postimg.cc/878ZY7GD/image.png' }
+        ];
+
+        function App() {
+            const [bgImage, setBgImage] = useState(null);
+            const [placedItems, setPlacedItems] = useState([]);
+            const [selectedId, setSelectedId] = useState(null);
+            const [dragging, setDragging] = useState(null);
+
+            const handleImageUpload = (e) => {
+                const file = e.target.files[0];
+                if (file) setBgImage(URL.createObjectURL(file));
+            };
+
+            const addCushion = (c) => {
+                if(!bgImage) return alert("Sube una foto de tu sala primero");
+                const newItem = { id: Date.now(), src: c.src, x: 100, y: 100, w: 150 };
+                setPlacedItems([...placedItems, newItem]);
+                setSelectedId(newItem.id);
+            };
+
+            const onStart = (e, id) => {
+                setSelectedId(id);
+                const item = placedItems.find(i => i.id === id);
+                const clientX = e.clientX || e.touches?.[0].clientX;
+                const clientY = e.clientY || e.touches?.[0].clientY;
+                setDragging({ id, startX: clientX - item.x, startY: clientY - item.y });
+            };
+
+            useEffect(() => {
+                const onMove = (e) => {
+                    if (!dragging) return;
+                    const clientX = e.clientX || e.touches?.[0].clientX;
+                    const clientY = e.clientY || e.touches?.[0].clientY;
+                    setPlacedItems(prev => prev.map(item => 
+                        item.id === dragging.id 
+                        ? { ...item, x: clientX - dragging.startX, y: clientY - dragging.startY }
+                        : item
+                    ));
+                };
+                const onEnd = () => setDragging(null);
+                window.addEventListener('pointermove', onMove);
+                window.addEventListener('pointerup', onEnd);
+                return () => {
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onEnd);
+                };
+            }, [dragging]);
+
+            return (
+                <div className="min-h-screen bg-stone-50 flex flex-col font-sans select-none">
+                    <header className="bg-white p-4 border-b flex justify-between items-center shadow-sm">
+                        <h1 className="text-xl font-bold tracking-tighter">PRIMORDIAL</h1>
+                        <span className="text-[10px] uppercase tracking-widest text-stone-400">Visualizador</span>
+                    </header>
+                    <main className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+                        <aside className="w-full lg:w-72 bg-white p-6 border-r space-y-6 z-10">
+                            <h2 className="text-xs font-bold uppercase">1. Foto de tu sala</h2>
+                            <input type="file" onChange={handleImageUpload} className="text-xs w-full" />
+                            <h2 className="text-xs font-bold uppercase mt-4">2. Cojines</h2>
+                            <div className="grid grid-cols-2 gap-2">
+                                {CUSHION_CATALOG.map(c => (
+                                    <div key={c.id} onClick={() => addCushion(c)} className="border p-2 rounded hover:border-black cursor-pointer bg-white">
+                                        <img src={c.src} className<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Primordial - Visualizador</title>
