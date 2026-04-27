@@ -10,6 +10,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .cushion-item { touch-action: none; user-select: none; }
+        .resize-handle { width: 14px; height: 14px; background: #000; border: 2px solid #fff; border-radius: 50%; position: absolute; bottom: -7px; right: -7px; cursor: nwse-resize; }
     </style>
 </head>
 <body>
@@ -27,7 +28,7 @@
             const [bgImage, setBgImage] = useState(null);
             const [placedItems, setPlacedItems] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
-            const [dragging, setDragging] = useState(null);
+            const [action, setAction] = useState(null); // 'move' o 'resize'
 
             const handleImageUpload = (e) => {
                 const file = e.target.files[0];
@@ -36,38 +37,52 @@
 
             const addCushion = (c) => {
                 if(!bgImage) return alert("Sube una foto de tu sala primero");
-                const newItem = { id: Date.now(), src: c.src, x: 100, y: 100, w: 150 };
+                const newItem = { id: Date.now(), src: c.src, x: 200, y: 200, w: 150 };
                 setPlacedItems([...placedItems, newItem]);
                 setSelectedId(newItem.id);
             };
 
-            const onStart = (e, id) => {
+            const onStart = (e, id, type) => {
+                e.stopPropagation();
                 setSelectedId(id);
                 const item = placedItems.find(i => i.id === id);
                 const clientX = e.clientX || e.touches?.[0].clientX;
                 const clientY = e.clientY || e.touches?.[0].clientY;
-                setDragging({ id, startX: clientX - item.x, startY: clientY - item.y });
+                setAction({ 
+                    id, 
+                    type, 
+                    startX: clientX, 
+                    startY: clientY, 
+                    initX: item.x, 
+                    initY: item.y, 
+                    initW: item.w 
+                });
             };
 
             useEffect(() => {
                 const onMove = (e) => {
-                    if (!dragging) return;
+                    if (!action) return;
                     const clientX = e.clientX || e.touches?.[0].clientX;
                     const clientY = e.clientY || e.touches?.[0].clientY;
-                    setPlacedItems(prev => prev.map(item => 
-                        item.id === dragging.id 
-                        ? { ...item, x: clientX - dragging.startX, y: clientY - dragging.startY }
-                        : item
-                    ));
+                    const deltaX = clientX - action.startX;
+
+                    setPlacedItems(prev => prev.map(item => {
+                        if (item.id !== action.id) return item;
+                        if (action.type === 'move') {
+                            return { ...item, x: action.initX + deltaX, y: action.initY + (clientY - action.startY) };
+                        } else {
+                            return { ...item, w: Math.max(50, action.initW + deltaX) };
+                        }
+                    }));
                 };
-                const onEnd = () => setDragging(null);
+                const onEnd = () => setAction(null);
                 window.addEventListener('pointermove', onMove);
                 window.addEventListener('pointerup', onEnd);
                 return () => {
                     window.removeEventListener('pointermove', onMove);
                     window.removeEventListener('pointerup', onEnd);
                 };
-            }, [dragging]);
+            }, [action]);
 
             return (
                 <div className="min-h-screen bg-stone-50 flex flex-col font-sans select-none">
@@ -97,22 +112,5 @@
                                     {placedItems.map(item => (
                                         <div 
                                             key={item.id} 
-                                            onPointerDown={(e) => { e.stopPropagation(); onStart(e, item.id); }}
-                                            style={{ left: item.x, top: item.y, width: item.w, transform: 'translate(-50%, -50%)' }} 
-                                            className={`absolute cursor-move cushion-item ${selectedId === item.id ? 'ring-2 ring-black' : ''}`}
-                                        >
-                                            <img src={item.src} className="w-full h-full object-contain drop-shadow-2xl pointer-events-none" />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </section>
-                    </main>
-                </div>
-            );
-        }
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+                                            onPointerDown={(e) => onStart(e, item.id, 'move')}
+                                            style={{ left: item.x, top: item.y, width: item.w, transform
