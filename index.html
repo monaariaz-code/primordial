@@ -46,8 +46,8 @@
         const { useState, useEffect } = React;
         
         // ¡IMPORTANTE! Para probar aquí en el chat, esto DEBE estar vacío.
-        // Solo pon tu clave "AIzaSy..." cuando vayas a subir el archivo a tu propia página web.
-        const apiKey = ""; 
+        // Cuando copies esto a GitHub, pon tu clave entre las comillas en esta línea:
+        const apiKey = "AIzaSyCIbqtp9KJnCfyyfq_-67dlVO0of2drIic"; 
         
         // Catálogo 1: Coxíns orixinais
         const CUSHION_CATALOG = [
@@ -69,12 +69,13 @@
                 try {
                     const response = await fetch(url, options);
                     if (!response.ok) {
+                        const errorText = await response.text();
                         let errorDetalle = `Error ${response.status}`;
                         try {
-                            const errJson = await response.json();
+                            const errJson = JSON.parse(errorText);
                             errorDetalle = errJson.error?.message || errorDetalle;
                         } catch(e) {
-                            errorDetalle = await response.text() || errorDetalle;
+                            errorDetalle = errorText || errorDetalle;
                         }
                         
                         if (response.status === 400) {
@@ -127,7 +128,7 @@
             });
         };
 
-        function AreaDeTrabajo({ titulo, subtitulo1, subtitulo2, catalogo, fondosBase, textoVacio, initSize = 180, usarIA = false, esEstampado = false }) {
+        function AreaDeTrabajo({ titulo, subtitulo1, subtitulo2, catalogo = [], fondosBase = [], textoVacio, initSize = 180, usarIA = false, esEstampado = false }) {
             const [bgImage, setBgImage] = useState(null);
             const [placedItems, setPlacedItems] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
@@ -330,7 +331,7 @@
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                                    {catalogo.map(c => (
+                                    {catalogo?.map(c => (
                                         <div 
                                             key={c.id} 
                                             onClick={() => addItem(c.src)} 
