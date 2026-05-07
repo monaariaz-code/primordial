@@ -10,13 +10,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        body { margin: 0; padding: 0; background-color: #C28263; }
+        body { margin: 0; padding: 0; background-color: #C28263; } /* Cor café extraída da túa imaxe */
         .draggable-item { touch-action: none; user-select: none; }
+        
         .resize-handle { 
             width: 24px; height: 24px; background: white; border: 3px solid #1c1917; 
             border-radius: 50%; position: absolute; bottom: -12px; right: -12px; 
             cursor: nwse-resize; z-index: 50; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
+        
         .delete-btn {
             width: 24px; height: 24px; background: #ef4444; color: white; 
             border-radius: 50%; position: absolute; top: -12px; right: -12px; 
@@ -24,10 +26,14 @@
             font-weight: bold; font-size: 14px; cursor: pointer; z-index: 60;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3); border: 2px solid white;
         }
+
+        /* Patrón de fondo para áreas baleiras */
         .bg-pattern {
             background-image: radial-gradient(#d6d3d1 1px, transparent 1px);
             background-size: 20px 20px;
         }
+        
+        /* Cambiamos o modo multiplicar por unha pequena sombra para a transparencia real */
         .efecto-estampado img {
             filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
         }
@@ -39,19 +45,24 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
         
-        const apiKey = "AIzaSyCIbqtp9KJnCfyyfq_-67dlVO0of2drIic";
+        // ¡IMPORTANTE! Para probar aquí en el chat, esto DEBE estar vacío.
+        // Solo pon tu clave "AIzaSy..." cuando vayas a subir el archivo a tu propia página web.
+        const apiKey = ""; 
         
+        // Catálogo 1: Coxíns orixinais
         const CUSHION_CATALOG = [
             { id: 'c1', name: 'Diamante terra', src: 'https://i.postimg.cc/Cz2Nqz5R/image.png' },
             { id: 'c2', name: 'Escala naval', src: 'https://i.postimg.cc/R3dJwDdd/image.png' },
             { id: 'c3', name: 'Paralelo 50/50', src: 'https://i.postimg.cc/SnNhJ1nt/image.png' },
-            { id: 'c4', name: 'Dualidad lavanda', src: 'https://i.postimg.cc/878ZY7GD/image.png' }
+            { id: 'c4', name: 'Dualidade lavanda', src: 'https://i.postimg.cc/878ZY7GD/image.png' }
         ];
 
+        // Novos fondos predeterminados (A túa servilleta)
         const FONDOS_SERVILLETAS = [
             { id: 'fs1', name: 'Servilleta Beige', src: 'https://i.postimg.cc/Pq24Hy70/Captura-de-pantalla-2026-05-07-a-la(s)-17-12-49.png' }
         ];
 
+        // Función para chamadas á API con reintentos automáticos y manejo de errores profundo
         const fetchWithRetry = async (url, options, retries = 5) => {
             const delays = [1000, 2000, 4000, 8000, 16000];
             for (let i = 0; i < retries; i++) {
@@ -65,11 +76,9 @@
                         } catch(e) {
                             errorDetalle = await response.text() || errorDetalle;
                         }
+                        
                         if (response.status === 400) {
-                            throw new Error(`Error 400: ${errorDetalle}`);
-                        }
-                        if (response.status === 403) {
-                            throw new Error(`Error 403: Tu API Key no tiene permisos. Detalle: ${errorDetalle}`);
+                            throw new Error(`Error 400 (Petición rechazada): Puede deberse a que el diseño pedido infringe las políticas de seguridad (ej. nombres propios o personas). Detalle: ${errorDetalle}`);
                         }
                         throw new Error(`Error de la IA: ${errorDetalle}`);
                     }
@@ -81,6 +90,7 @@
             }
         };
 
+        // NOVA FUNCIÓN: Algoritmo para remover o fondo branco pixel por pixel
         const procesarFondoTransparente = (base64Image) => {
             return new Promise((resolve, reject) => {
                 const img = new Image();
@@ -90,20 +100,29 @@
                     canvas.height = img.height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
+                    
                     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     const data = imageData.data;
+                    
+                    // Analizamos cada pixel (R, G, B, Alpha)
                     for (let i = 0; i < data.length; i += 4) {
-                        const r = data[i], g = data[i + 1], b = data[i + 2];
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        
+                        // Se o pixel é moi branco, facémolo transparente
                         if (r > 240 && g > 240 && b > 240) {
-                            data[i + 3] = 0;
+                            data[i + 3] = 0; // Transparencia total
                         } else if (r > 200 && g > 200 && b > 200) {
+                            // Suavizado (anti-aliasing) para os bordos do fío
                             data[i + 3] = Math.max(0, 255 - (r - 200) * 6.375);
                         }
                     }
+                    
                     ctx.putImageData(imageData, 0, 0);
                     resolve(canvas.toDataURL('image/png'));
                 };
-                img.onerror = () => reject(new Error("No se pudo procesar la transparencia."));
+                img.onerror = () => reject(new Error("No se pudo procesar la transparencia de la imagen."));
                 img.src = base64Image;
             });
         };
@@ -113,82 +132,119 @@
             const [placedItems, setPlacedItems] = useState([]);
             const [selectedId, setSelectedId] = useState(null);
             const [action, setAction] = useState(null);
+            
+            // Estados para a IA
             const [promptIA, setPromptIA] = useState("");
             const [generandoIA, setGenerandoIA] = useState(false);
             const [errorIA, setErrorIA] = useState("");
 
+            // Manexo de subida de imaxe de fondo (servilleta ou sofá)
             const handleImageUpload = (e) => {
                 const file = e.target.files[0];
                 if (file) setBgImage(URL.createObjectURL(file));
             };
 
+            // Engadir un novo elemento ao lenzo
             const addItem = (src) => {
-                if (!bgImage) return alert(`Primero sube una foto en la sección: ${titulo}`);
-                const newItem = { id: Date.now() + Math.random(), src, x: 150, y: 150, w: initSize };
+                if(!bgImage) return alert(`Primero sube una foto en la sección: ${titulo}`);
+                const newItem = { 
+                    id: Date.now() + Math.random(), 
+                    src: src, 
+                    x: 150, 
+                    y: 150, 
+                    w: initSize 
+                };
                 setPlacedItems([...placedItems, newItem]);
                 setSelectedId(newItem.id);
             };
 
+            // Xerar imaxe con IA
             const generarEstampado = async () => {
-                if (!bgImage) return alert(`Primero escoge un fondo.`);
+                if (!bgImage) return alert(`Primero escoge un fondo de tu servilleta o mesa.`);
                 if (!promptIA.trim()) return alert("Por favor escribe qué diseño quieres generar.");
+                
                 setGenerandoIA(true);
                 setErrorIA("");
+                
                 try {
-                    // ✅ Cambiado a imagen-3.0-generate-002 (disponible en plan gratuito)
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+                    // Forzamos a la IA a usar un fondo blanco SÓLIDO para que nuestro algoritmo lo recorte fácilmente
                     const promptMejorado = `Fotografía macro de un bordado detallado y realista de: ${promptIA}. Hecho con hilos de colores aislados sobre un fondo COMPLETAMENTE BLANCO PURO. Textura de hilo y puntadas visibles, estilo artesanal, sin sombras proyectadas.`;
+                    
+                    const payload = {
+                        instances: { prompt: promptMejorado },
+                        parameters: { sampleCount: 1 }
+                    };
+
                     const result = await fetchWithRetry(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ instances: { prompt: promptMejorado }, parameters: { sampleCount: 1 } })
+                        body: JSON.stringify(payload)
                     });
+
                     if (result.predictions && result.predictions.length > 0) {
                         const imageUrlOriginal = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                        
+                        // PASO CLAVE: Pasamos la imagen por nuestro borrador de fondos antes de ponerla en pantalla
                         const imagenTransparente = await procesarFondoTransparente(imageUrlOriginal);
+                        
                         addItem(imagenTransparente);
-                        setPromptIA("");
+                        setPromptIA(""); // Limpiar el input después de generar
                     } else {
-                        throw new Error("La IA no pudo generar esta imagen. Intenta describirlo de otra forma.");
+                        // Manejo de errores si la IA bloquea el contenido por filtros de seguridad
+                        throw new Error("La IA no pudo generar esta imagen (posible filtro de contenido). Intenta describirlo de otra forma.");
                     }
                 } catch (err) {
                     console.error(err);
-                    setErrorIA(err.message || "Hubo un error. Inténtalo de nuevo.");
+                    setErrorIA(err.message || "Hubo un error al generar tu diseño. Inténtalo de nuevo.");
                 } finally {
                     setGenerandoIA(false);
                 }
             };
 
+            // Eliminar elemento
             const deleteItem = (id, e) => {
                 e.stopPropagation();
                 setPlacedItems(prev => prev.filter(item => item.id !== id));
                 setSelectedId(null);
             };
 
+            // Iniciar arrastre ou redimensión
             const onStart = (e, id, type) => {
                 e.stopPropagation();
                 setSelectedId(id);
                 const item = placedItems.find(i => i.id === id);
                 const clientX = e.clientX || e.touches?.[0].clientX;
                 const clientY = e.clientY || e.touches?.[0].clientY;
-                setAction({ id, type, startX: clientX, startY: clientY, initX: item.x, initY: item.y, initW: item.w });
+                
+                setAction({ 
+                    id, type, startX: clientX, startY: clientY, 
+                    initX: item.x, initY: item.y, initW: item.w 
+                });
             };
 
             useEffect(() => {
                 const onMove = (e) => {
                     if (!action) return;
-                    if (e.cancelable && e.type === 'touchmove') e.preventDefault();
+                    if(e.cancelable && e.type === 'touchmove') e.preventDefault(); 
+                    
                     const clientX = e.clientX || e.touches?.[0].clientX;
                     const clientY = e.clientY || e.touches?.[0].clientY;
                     const deltaX = clientX - action.startX;
                     const deltaY = clientY - action.startY;
+
                     setPlacedItems(prev => prev.map(item => {
                         if (item.id !== action.id) return item;
-                        if (action.type === 'move') return { ...item, x: action.initX + deltaX, y: action.initY + deltaY };
-                        return { ...item, w: Math.max(30, action.initW + deltaX) };
+                        if (action.type === 'move') {
+                            return { ...item, x: action.initX + deltaX, y: action.initY + deltaY };
+                        } else {
+                            return { ...item, w: Math.max(30, action.initW + deltaX) };
+                        }
                     }));
                 };
+                
                 const onEnd = () => setAction(null);
+                
                 if (action) {
                     window.addEventListener('pointermove', onMove, { passive: false });
                     window.addEventListener('pointerup', onEnd);
@@ -201,8 +257,174 @@
 
             return (
                 <div className="flex flex-col lg:flex-row bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden mb-12">
+                    {/* Panel lateral de controis */}
                     <aside className="w-full lg:w-80 bg-white p-6 border-b lg:border-b-0 lg:border-r border-stone-200 space-y-6 z-10 flex-shrink-0">
                         <div>
                             <h2 className="text-xl font-bold text-stone-800 mb-1">{titulo}</h2>
                             <p className="text-sm text-stone-500 mb-4">{textoVacio}</p>
                         </div>
+                        
+                        <div className="p-4 bg-stone-50 rounded-xl border border-stone-100">
+                            <h3 className="text-[11px] font-black uppercase tracking-wider text-stone-500 mb-3">{subtitulo1}</h3>
+                            
+                            {/* Nova funcionalidade: Mostrar galería de fondos se existe */}
+                            {fondosBase && fondosBase.length > 0 && (
+                                <div className="flex gap-2 mb-4">
+                                    {fondosBase.map(fondo => (
+                                        <div 
+                                            key={fondo.id}
+                                            onClick={() => setBgImage(fondo.src)}
+                                            className={`w-16 h-16 rounded-lg cursor-pointer overflow-hidden border-2 transition-all ${bgImage === fondo.src ? 'border-stone-800 scale-105 shadow-md' : 'border-stone-200 hover:border-stone-400'}`}
+                                            title={fondo.name}
+                                        >
+                                            <img src={fondo.src} className="w-full h-full object-cover" alt={fondo.name} />
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            <label className="block w-full cursor-pointer bg-white border-2 border-dashed border-stone-300 hover:border-stone-500 rounded-lg p-3 text-center transition-colors">
+                                <span className="text-xs font-semibold text-stone-600">{fondosBase ? 'O haz clic para subir otra foto' : 'Haz clic para subir foto'}</span>
+                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                            </label>
+                        </div>
+
+                        <hr className="border-stone-100" />
+                        
+                        <div>
+                            <h3 className="text-[11px] font-black uppercase tracking-wider text-stone-500 mb-4">{subtitulo2}</h3>
+                            
+                            {/* Renderizado condicional: Catálogo vs IA */}
+                            {usarIA ? (
+                                <div className="space-y-3">
+                                    <textarea 
+                                        value={promptIA}
+                                        onChange={(e) => setPromptIA(e.target.value)}
+                                        placeholder="Ej. Una flor silvestre, un hongo rojo, iniciales florales..."
+                                        className="w-full p-3 text-sm border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-stone-500 resize-none h-24"
+                                    ></textarea>
+                                    
+                                    <button 
+                                        onClick={generarEstampado}
+                                        disabled={generandoIA || !bgImage}
+                                        className={`w-full py-3 rounded-lg font-bold text-sm text-white transition-colors flex items-center justify-center gap-2
+                                            ${generandoIA || !bgImage ? 'bg-stone-300 cursor-not-allowed' : 'bg-stone-900 hover:bg-stone-800 shadow-md'}`}
+                                    >
+                                        {generandoIA ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Bordando Arte...
+                                            </>
+                                        ) : '🪡 Generar Bordado'}
+                                    </button>
+                                    
+                                    {!bgImage && (
+                                        <p className="text-[10px] text-amber-600 text-center">Escoge un fondo primero para habilitar la IA.</p>
+                                    )}
+                                    {errorIA && (
+                                        <p className="text-xs text-red-600 text-center bg-red-50 p-2 rounded border border-red-200">{errorIA}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                                    {catalogo.map(c => (
+                                        <div 
+                                            key={c.id} 
+                                            onClick={() => addItem(c.src)} 
+                                            className="group border border-stone-200 rounded-xl p-3 hover:border-stone-800 hover:shadow-md cursor-pointer bg-white transition-all"
+                                        >
+                                            <div className="h-16 flex items-center justify-center mb-2">
+                                                <img src={c.src} className="max-w-full max-h-full object-contain" alt={c.name} />
+                                            </div>
+                                            <p className="text-[10px] text-center uppercase font-bold text-stone-700">{c.name}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </aside>
+
+                    {/* Área principal do lenzo */}
+                    <section 
+                        className="flex-1 p-4 lg:p-8 flex items-center justify-center bg-pattern relative min-h-[400px] lg:min-h-[600px]" 
+                        onPointerDown={() => setSelectedId(null)}
+                    >
+                        {!bgImage ? (
+                            <div className="text-center p-8 bg-white/80 backdrop-blur-sm rounded-2xl border border-stone-200 shadow-sm">
+                                <div className="text-4xl mb-3">🖼️</div>
+                                <p className="text-stone-500 font-medium">{textoVacio}</p>
+                            </div>
+                        ) : (
+                            <div className="relative shadow-2xl bg-white border-8 border-white inline-block max-w-full">
+                                <img src={bgImage} className="max-h-[70vh] w-auto object-contain block pointer-events-none" alt="Fondo" />
+                                
+                                {placedItems.map(item => (
+                                    <div 
+                                        key={item.id} 
+                                        onPointerDown={(e) => onStart(e, item.id, 'move')}
+                                        style={{ left: item.x, top: item.y, width: item.w, transform: 'translate(-50%, -50%)' }} 
+                                        className={`absolute draggable-item ${esEstampado ? 'efecto-estampado' : ''} ${selectedId === item.id ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}
+                                    >
+                                        <img src={item.src} className="w-full h-full object-contain drop-shadow-lg pointer-events-none" alt="Elemento decorativo" />
+                                        
+                                        {selectedId === item.id && (
+                                            <>
+                                                <div className="delete-btn" onPointerDown={(e) => deleteItem(item.id, e)}>✕</div>
+                                                <div className="resize-handle" onPointerDown={(e) => onStart(e, item.id, 'resize')} />
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                </div>
+            );
+        }
+
+        function App() {
+            return (
+                <div className="min-h-screen font-sans select-none text-stone-900 pb-20">
+                    
+                    <main className="max-w-[1400px] mx-auto px-4 lg:px-8 pt-8 lg:pt-12">
+                        {/* SECCIÓN 1: COJINES */}
+                        <AreaDeTrabajo 
+                            titulo="Simulador de Salas"
+                            subtitulo1="1. Sube foto de tu sofá"
+                            subtitulo2="2. Elige los cojines"
+                            textoVacio="Sube una foto de tu sala para empezar a probar cojines."
+                            catalogo={CUSHION_CATALOG}
+                            initSize={180}
+                            usarIA={false}
+                        />
+
+                        <div className="flex items-center gap-4 my-12 opacity-80">
+                            <div className="h-px bg-white/40 flex-1"></div>
+                            <span className="text-white text-sm font-bold uppercase tracking-widest drop-shadow-sm">Simulador de Servilletas</span>
+                            <div className="h-px bg-white/40 flex-1"></div>
+                        </div>
+
+                        {/* SECCIÓN 2: SERVILLETAS CON IA Y TU IMAGEN BASE */}
+                        <AreaDeTrabajo 
+                            titulo="Simulador de Servilletas"
+                            subtitulo1="1. Escoge tu servilleta"
+                            subtitulo2="2. Crea tu bordado con IA"
+                            textoVacio="Escoge o sube una foto de tu servilleta vacía para empezar a bordar."
+                            fondosBase={FONDOS_SERVILLETAS} /* Aquí pasamos tu galería de fotos de servilletas */
+                            initSize={120} 
+                            usarIA={true} 
+                            esEstampado={true} 
+                        />
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
