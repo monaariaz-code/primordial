@@ -44,7 +44,7 @@
     
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const apiKey = ""; // A plataforma inxectará a API key automaticamente aquí
+        const apiKey = "AIzaSyCIbqtp9KJnCfyyfq_-67dlVO0of2drIic"; // ¡Tu clave ya está insertada y lista para tu web!
         
         // Catálogo 1: Coxíns orixinais
         const CUSHION_CATALOG = [
@@ -67,6 +67,11 @@
                     const response = await fetch(url, options);
                     if (!response.ok) {
                         const errTxt = await response.text();
+                        if (response.status === 403) {
+                            throw new Error("Error 403: Falta API Key. Si llevaste el código a tu web, necesitas poner tu propia clave de Gemini en el código.");
+                        } else if (response.status === 400) {
+                            throw new Error("Error 400: Puede que tu API Key sea inválida o esté vacía.");
+                        }
                         throw new Error(`Error de la IA: ${response.status}`);
                     }
                     return await response.json();
@@ -158,11 +163,8 @@
                     // Forzamos a la IA a usar un fondo blanco SÓLIDO para que nuestro algoritmo lo recorte fácilmente
                     const promptMejorado = `Fotografía macro de un bordado detallado y realista de: ${promptIA}. Hecho con hilos de colores aislados sobre un fondo COMPLETAMENTE BLANCO PURO. Textura de hilo y puntadas visibles, estilo artesanal, sin sombras proyectadas.`;
                     
-                    // CORRECCIÓN CRÍTICA: "instances" debe ser un array (lista) de objetos, no un solo objeto
                     const payload = {
-                        instances: [
-                            { prompt: promptMejorado }
-                        ],
+                        instances: { prompt: promptMejorado },
                         parameters: { sampleCount: 1 }
                     };
 
