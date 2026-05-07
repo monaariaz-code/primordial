@@ -44,7 +44,10 @@
     
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const apiKey = "AIzaSyCIbqtp9KJnCfyyfq_-67dlVO0of2drIic"; // ¡Tu clave ya está insertada y lista para tu web!
+        
+        // ¡IMPORTANTE! Para probar aquí en el chat, esto DEBE estar vacío.
+        // Solo pon tu clave "AIzaSy..." cuando vayas a subir el archivo a tu propia página web.
+        const apiKey = ""; 
         
         // Catálogo 1: Coxíns orixinais
         const CUSHION_CATALOG = [
@@ -66,13 +69,18 @@
                 try {
                     const response = await fetch(url, options);
                     if (!response.ok) {
-                        const errTxt = await response.text();
-                        if (response.status === 403) {
-                            throw new Error("Error 403: Falta API Key. Si llevaste el código a tu web, necesitas poner tu propia clave de Gemini en el código.");
-                        } else if (response.status === 400) {
-                            throw new Error("Error 400: Puede que tu API Key sea inválida o esté vacía.");
+                        let errorDetalle = `Error ${response.status}`;
+                        try {
+                            const errJson = await response.json();
+                            errorDetalle = errJson.error?.message || errorDetalle;
+                        } catch(e) {
+                            errorDetalle = await response.text() || errorDetalle;
                         }
-                        throw new Error(`Error de la IA: ${response.status}`);
+                        
+                        if (response.status === 400) {
+                            throw new Error(`Error 400 (Petición rechazada): Puede deberse a que el diseño pedido infringe las políticas de seguridad (ej. nombres propios o personas). Detalle: ${errorDetalle}`);
+                        }
+                        throw new Error(`Error de la IA: ${errorDetalle}`);
                     }
                     return await response.json();
                 } catch (error) {
@@ -317,7 +325,7 @@
                                         <p className="text-[10px] text-amber-600 text-center">Escoge un fondo primero para habilitar la IA.</p>
                                     )}
                                     {errorIA && (
-                                        <p className="text-[10px] text-red-500 text-center bg-red-50 p-2 rounded border border-red-100">{errorIA}</p>
+                                        <p className="text-xs text-red-600 text-center bg-red-50 p-2 rounded border border-red-200">{errorIA}</p>
                                     )}
                                 </div>
                             ) : (
